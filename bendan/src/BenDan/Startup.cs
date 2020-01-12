@@ -5,8 +5,10 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using ApplicationCore.Interfaces;
 using BenDan.InitialConfiguration;
 using Infrastructure;
+using Infrastructure.Repositorys;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
@@ -20,6 +22,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using static BenDan.InitialConfiguration.SwaggerHelper.CustomApiVersion;
 
 namespace BenDan
 {
@@ -92,17 +95,33 @@ namespace BenDan
             #region swagger
             services.AddSwaggerGen(c =>
             {
-                c.SwaggerDoc("v1", new OpenApiInfo
+
+                #region old
+                //c.SwaggerDoc("v1", new OpenApiInfo
+                //{
+                //    Version = "v1",
+                //    Title = "BenDan API",
+                //    Description = "基于.NET Core 3.1 + Vue2 的开源博客",
+                //    Contact = new OpenApiContact
+                //    {
+                //        Name = "luren",
+                //        Email = "lurenio@qq.com",
+                //        Url = new Uri("http://bendan.org"),
+                //    },
+                //});
+                #endregion
+
+                //遍历出全部的版本，做文档信息展示
+                typeof(ApiVersions).GetEnumNames().ToList().ForEach(version =>
                 {
-                    Version = "v1",
-                    Title = "bendan api",
-                    Description = "基于.NET Core 3.1 + Vue2 的开源博客",
-                    Contact = new OpenApiContact
+                    c.SwaggerDoc(version, new OpenApiInfo
                     {
-                        Name = "bendan",
-                        Email = "bentoule@qq.com",
-                        Url = new Uri("http://bendan.org"),
-                    },
+                        // {ApiName} 定义成全局变量，方便修改
+                        Version = version,
+                        Title = "BenDan API",
+                        Description = "基于.NET Core 3.1 + Vue2 的开源博客。当前版本：" + version,
+                        Contact = new OpenApiContact { Name = "luren", Email = "lurenio@qq.com", Url = new Uri("http://bendan.org")}
+                    });
                 });
 
                 // Set the comments path for the Swagger JSON and UI.
@@ -139,6 +158,8 @@ namespace BenDan
 
             #endregion
 
+            services.AddScoped<IUsersRepository, UsersRepository>();
+
             services.AddControllers();
         }
 
@@ -168,10 +189,17 @@ namespace BenDan
             app.UseSwaggerUI(c =>
             {
                 c.DocumentTitle = "BenDan API";
-                c.SwaggerEndpoint("/api-docs/v1/bendan.json", "BenDan API V1");
+                //c.SwaggerEndpoint("/api-docs/v1/bendan.json", "BenDan API V1"); //old
+                //根据版本名称倒序 遍历展示
+                typeof(ApiVersions).GetEnumNames().OrderByDescending(e => e).ToList().ForEach(version =>
+                {
+                    c.SwaggerEndpoint($"/api-docs/{version}/bendan.json", $"BenDan {version}");
+                });
                 c.RoutePrefix = string.Empty;
                 c.IndexStream = () => GetType().Assembly.GetManifestResourceStream("BenDan.wwwroot.swagger.ui.index.html");
             });
+
+         
 
             #endregion
 
